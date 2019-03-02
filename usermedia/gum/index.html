@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<!--
+ *  Copyright (c) 2015 The WebRTC project authors. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree.
+-->
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="description" content="WebRTC code samples">
+    <meta name="viewport" content="width=device-width, user-scalable=yes, initial-scale=1, maximum-scale=1">
+    <meta itemprop="description" content="Client-side WebRTC code samples">
+    <meta itemprop="name" content="WebRTC code samples">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta id="theme-color" name="theme-color" content="#ffffff">
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="/coffeescript.js"></script>
+    <script src="/adapter-latest.js"></script>
+    <script src="/fetch.js"></script>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <base target="_blank">
+    <title>getUserMedia</title>
+    <link rel="stylesheet" href="/main.css">
+</head>
+
+<body>
+<div id="logo">
+    <img src="quickauth.png">
+</div>
+
+<div class="main-box" id="main-box">
+    <div class="input-box">
+        <div><input type="text" class="center-input" placeholder=" 班级" id="classId"></div>
+        <div><input type="text" class="center-input" placeholder=" 学号" id="userId"></div>
+        <div class="login-btn" onclick="begin_scanning()" id="BeginScanningBtn">登陆</div>
+    </div>
+</div>
+
+<div id="container" class="video">
+    <div  class="center-msg">  请将面部置于屏幕中央</div>
+    <video id="gum-local" autoplay playsinline></video>
+    <div id="errorMsg"></div>
+    <canvas id="canvas" width="480" height="320" class="screen-shot" style="display: none"></canvas>
+</div>
+<div class="empty-box" style="height: 7rem;"></div>
+
+
+
+<script>
+
+    function test_input() {
+        let reg = new RegExp("^[0-9]+$");
+        let userId = document.getElementById("userId").value;
+        let classId = document.getElementById("classId").value;
+        console.log(userId);
+        if (!reg.test(userId)) {
+            alert("请输入合法数字!");
+            return false;
+        }
+        if (!reg.test(classId)) {
+            alert("请输入合法数字!");
+            return false;
+        }
+        return true;
+    }
+
+    function handle_error(error) {
+        if (error.name === 'ConstraintNotSatisfiedError') {
+            let v = constraints.video;
+            errorMsg(`The resolution ${v.width.exact}x${v.height.exact} px is not supported by your device.`);
+        } else if (error.name === 'PermissionDeniedError') {
+            errorMsg('Permissions have not been granted to use your camera and ' +
+                'microphone, you need to allow the page access to your devices in ' +
+                'order for the demo to work.');
+        }
+        errorMsg(`getUserMedia error: ${error.name}`, error);
+    }
+
+    function errorMsg(msg, error) {
+        alert('摄像头调用失败: ' + msg);
+        if (typeof error !== 'undefined') {
+            console.error(error);
+        }
+    }
+
+
+</script>
+
+<script type="text/coffeescript">
+    constraints = window.constraints =
+        audio: false
+        video: true
+
+    hide_video = () ->
+        document.getElementById('container').style.display = "none"
+
+    show_video = () ->
+        document.getElementById('container').style.display = "block"
+        document.getElementById('main-box').style.display = "none"
+        document.getElementById('logo').style.display = "none"
+
+    window.onload = () ->
+        hide_video()
+
+    store_user_info = () ->
+        window.user_id  = document.getElementById("userId").value
+        window.class_id = document.getElementById("classId").value
+
+    window.begin_scanning = () ->
+        if not test_input()
+            return
+
+        if not await init_camera()
+            return
+
+        store_user_info()
+        show_video()
+        window.interval = setInterval try_checkin, 2000
+
+    stop_scanning = () ->
+        clearInterval interval
+
+    hide_loading = () ->
+        document.getElementById("loading").style.display = "none";
+
+    init_camera = () ->
+        try
+            stream = await navigator.mediaDevices.getUserMedia constraints
+            video = document.querySelector 'video'
+            videoTracks = stream.getVideoTracks()
+
+            console.log 'Got stream with constraints:', constraints
+            console.log "Using video device: #{videoTracks[0].label}"
+
+            window.stream = stream
+            video.srcObject = stream
+
+            return true
+        catch e
+            handle_error e
+            return false
+
+    take_photo = () ->
+        canvas = document.querySelector "#canvas"
+        video = document.querySelector 'video'
+
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+
+        context = canvas.getContext "2d"
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        dataURL = canvas.toDataURL 'image/png'
+        return dataURL
+
+    try_checkin = () ->
+        face_img = take_photo()
+        console.log face_img.length
+
+        try
+            resp = await api.post '/api/v1/attend/join',
+                'id':    window.location.search.match(/id=([0-9]+)/)[1]
+                'val':   window.location.search.match(/val=([0-9]+)/)[1]
+                'code':  userId
+                'group': classId
+                'img':   face_img
+
+            console.log resp.data
+            hide_loading()
+
+            if resp.data.ok
+                stop_scanning()
+                alert("登陆成功");
+                return
+
+            alert "登陆失败"
+
+        catch
+            stop_scanning()
+            alert "登录错误"
+
+</script>
+
+</body>
+</html>
