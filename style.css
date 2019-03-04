@@ -14,6 +14,10 @@ body {
 .empty-box{
 
 }
+/*#logo{*/
+    /*width: 7rem;*/
+    /*height: 7rem    ;*/
+/*}*/
 .input-box {
     display: flex;
     align-items: center;
