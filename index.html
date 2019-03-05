@@ -163,8 +163,8 @@
             resp = await api.post '/api/v1/attend/join',
                 'id':    window.location.search.match(/id=([0-9]+)/)[1]
                 'val':   window.location.search.match(/val=([0-9]+)/)[1]
-                'code':  userId
-                'group': classId
+                'code':  user_id
+                'group': class_id
                 'img':   face_img
 
             console.log resp.data
