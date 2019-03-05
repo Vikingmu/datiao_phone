@@ -168,14 +168,14 @@
                 'img':   face_img
 
             console.log resp.data
-            hide_loading()
+            # hide_loading()
 
             if resp.data.ok
                 stop_scanning()
                 alert("登陆成功");
                 return
 
-            alert "登陆失败"
+            console.log "登陆失败"
 
         catch e
             stop_scanning()
